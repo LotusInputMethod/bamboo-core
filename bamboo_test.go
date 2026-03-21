@@ -646,6 +646,40 @@ func TestDoubleTyping(t *testing.T) {
 
 var ng = newStdEngine()
 
+func TestProcessKey_Backspace(t *testing.T) {
+	e := newStdEngine()
+	e.ProcessString("chao", VietnameseMode)
+	if e.GetProcessedString(VietnameseMode) != "chao" {
+		t.Errorf("Expected chao, got %s", e.GetProcessedString(VietnameseMode))
+	}
+	e.ProcessKey('s', VietnameseMode)
+	if e.GetProcessedString(VietnameseMode) != "cháo" {
+		t.Errorf("Expected cháo, got %s", e.GetProcessedString(VietnameseMode))
+	}
+	e.ProcessKey('\b', VietnameseMode)
+	if e.GetProcessedString(VietnameseMode) != "chá" {
+		t.Errorf("Expected chá after backspace, got %s", e.GetProcessedString(VietnameseMode))
+	}
+}
+
+func TestGetApplicableRules_Invalid(t *testing.T) {
+	e := newStdEngine().(*BambooEngine)
+	rules := e.getApplicableRules('😊')
+	if rules != nil {
+		t.Errorf("Expected nil rules for emoji, got %v", rules)
+	}
+}
+
+func TestCanProcessKey_Invalid(t *testing.T) {
+	e := newStdEngine()
+	if e.CanProcessKey('😊') {
+		t.Error("Expected CanProcessKey to return false for emoji")
+	}
+	if !e.CanProcessKey('a') {
+		t.Error("Expected CanProcessKey to return true for 'a'")
+	}
+}
+
 func BenchmarkRemoveLastChar(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
