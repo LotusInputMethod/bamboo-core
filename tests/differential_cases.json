@@ -1,0 +1,142 @@
+[
+  {
+    "id": "telex2_aw",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "aw" }
+    ]
+  },
+  {
+    "id": "telex2_uwow",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "uwow" }
+    ]
+  },
+  {
+    "id": "telex2_chuaarn",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "chuaarn" }
+    ]
+  },
+  {
+    "id": "telex2_giamaf",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "giamaf" }
+    ]
+  },
+  {
+    "id": "telex2_ddafi",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "ddafi" }
+    ]
+  },
+  {
+    "id": "telex2_mootj",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "mootj" }
+    ]
+  },
+  {
+    "id": "telex2_loanj_remove",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "loanj" },
+      { "op": "remove_last_char", "refresh": true }
+    ]
+  },
+  {
+    "id": "telex2_toowi",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "toowi" }
+    ]
+  },
+  {
+    "id": "telex2_aloo",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "aloo" }
+    ]
+  },
+  {
+    "id": "telex2_catr",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "catr" }
+    ]
+  },
+  {
+    "id": "telex_tieesng_vieetj",
+    "input_method": "Telex",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "tieesng Vieetj" }
+    ]
+  },
+  {
+    "id": "telex_chuyeern",
+    "input_method": "Telex",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "chuyeern" }
+    ]
+  },
+  {
+    "id": "telex_nguowif",
+    "input_method": "Telex",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "nguowif" }
+    ]
+  },
+  {
+    "id": "telex_ddawng",
+    "input_method": "Telex",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "ddawng" }
+    ]
+  },
+  {
+    "id": "backspace_refresh",
+    "input_method": "Telex 2",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "Thuow" },
+      { "op": "remove_last_char", "refresh": true }
+    ]
+  },
+  {
+    "id": "restore_last_word_roundtrip",
+    "input_method": "Telex",
+    "initial_mode": "Vietnamese",
+    "steps": [
+      { "op": "process_string", "value": "nguowif" },
+      { "op": "restore_last_word", "mode": "English" },
+      { "op": "restore_last_word", "mode": "Vietnamese" }
+    ]
+  },
+  {
+    "id": "english_passthrough",
+    "input_method": "Telex",
+    "initial_mode": "English",
+    "steps": [
+      { "op": "process_string", "value": "IBus" }
+    ]
+  }
+]
