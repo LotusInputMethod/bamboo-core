@@ -40,19 +40,25 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
 
 [[nodiscard]] char32_t addMarkToTonelessChar(char32_t chr, std::uint8_t mark) noexcept {
     switch (chr) {
-    case U'a': return mark == 1 ? U'â' : (mark == 2 ? U'ă' : U'a');
-    case U'â': return mark == 0 ? U'a' : U'â';
-    case U'ă': return mark == 0 ? U'a' : U'ă';
-    case U'e': return mark == 1 ? U'ê' : U'e';
-    case U'ê': return mark == 0 ? U'e' : U'ê';
-    case U'o': return mark == 1 ? U'ô' : (mark == 3 ? U'ơ' : U'o');
-    case U'ô': return mark == 0 ? U'o' : U'ô';
-    case U'ơ': return mark == 0 ? U'o' : U'ơ';
-    case U'u': return mark == 3 ? U'ư' : U'u';
-    case U'ư': return mark == 0 ? U'u' : U'ư';
-    case U'd': return mark == 4 ? U'đ' : U'd';
-    case U'đ': return mark == 0 ? U'd' : U'đ';
-    default: return chr;
+    case U'a':
+    case U'â':
+    case U'ă':
+        return mark == 1 ? U'â' : (mark == 2 ? U'ă' : U'a');
+    case U'e':
+    case U'ê':
+        return mark == 1 ? U'ê' : U'e';
+    case U'o':
+    case U'ô':
+    case U'ơ':
+        return mark == 1 ? U'ô' : (mark == 3 ? U'ơ' : U'o');
+    case U'u':
+    case U'ư':
+        return mark == 3 ? U'ư' : U'u';
+    case U'd':
+    case U'đ':
+        return mark == 4 ? U'đ' : U'd';
+    default:
+        return chr;
     }
 }
 
@@ -67,15 +73,21 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
 }
 
 
-[[nodiscard]] std::u32string flattenVietnameseView(const CompositionView& composition, bool lowerCase, bool toneLess, bool markLess) {
+[[nodiscard]] std::u32string flattenVietnameseView(const CompositionView& composition,
+                                                   bool lowerCase,
+                                                   bool toneLess,
+                                                   bool markLess,
+                                                   const Transformation* extra = nullptr) {
     std::u32string canvas;
-    canvas.reserve(composition.size());
-    for (const Transformation* appending : composition) {
+    canvas.reserve(composition.size() + (extra != nullptr ? 1U : 0U));
+    for (std::size_t index = 0; index < composition.size(); ++index) {
+        const Transformation* appending = composition[index];
         if (appending->rule.effectType != EffectType::Appending || appending->rule.key == 0) {
             continue;
         }
         char32_t chr = appending->rule.effectOn;
-        for (const Transformation* trans : composition) {
+        for (std::size_t transIndex = 0; transIndex < composition.size(); ++transIndex) {
+            const Transformation* trans = composition[transIndex];
             if (trans->target != appending) {
                 continue;
             }
@@ -83,6 +95,13 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
                 chr = trans->rule.mark() == Mark::Raw ? appending->rule.key : addMarkToChar(chr, trans->rule.effect);
             } else if (trans->rule.effectType == EffectType::ToneTransformation) {
                 chr = addToneToChar(chr, trans->rule.effect);
+            }
+        }
+        if (extra != nullptr && extra->target == appending) {
+            if (extra->rule.effectType == EffectType::MarkTransformation) {
+                chr = extra->rule.mark() == Mark::Raw ? appending->rule.key : addMarkToChar(chr, extra->rule.effect);
+            } else if (extra->rule.effectType == EffectType::ToneTransformation) {
+                chr = addToneToChar(chr, extra->rule.effect);
             }
         }
         if (toneLess) {
@@ -105,9 +124,28 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
     return spelling.isValidCvc(segments.firstConsonant, segments.vowel, segments.lastConsonant, full);
 }
 
-[[nodiscard]] char32_t renderTargetChar(const CompositionView& composition, const Transformation* target) {
+[[nodiscard]] bool hasValidTone(const CompositionView& composition, Tone tone);
+
+[[nodiscard]] bool hasValidTone(const CompositionView& composition, Tone tone) {
+    if (tone == Tone::None || tone == Tone::Acute || tone == Tone::Dot) {
+        return true;
+    }
+    const std::u32string word = flattenVietnameseView(composition, true, false, false);
+    const Segments segments = splitWord(word);
+    const std::u32string_view lastConsonants = segments.lastConsonant;
+    if (lastConsonants.empty()) {
+        return true;
+    }
+    return !(lastConsonants == U"c" || lastConsonants == U"k" || lastConsonants == U"p" ||
+             lastConsonants == U"t" || lastConsonants == U"ch");
+}
+
+[[nodiscard]] char32_t renderTargetChar(const CompositionView& composition,
+                                        const Transformation* target,
+                                        const Transformation* extra = nullptr) {
     char32_t chr = target->rule.effectOn;
-    for (const Transformation* trans : composition) {
+    for (std::size_t index = 0; index < composition.size(); ++index) {
+        const Transformation* trans = composition[index];
         if (trans->target != target) {
             continue;
         }
@@ -115,6 +153,13 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
             chr = trans->rule.mark() == Mark::Raw ? target->rule.key : addMarkToChar(chr, trans->rule.effect);
         } else if (trans->rule.effectType == EffectType::ToneTransformation) {
             chr = addToneToChar(chr, trans->rule.effect);
+        }
+    }
+    if (extra != nullptr && extra->target == target) {
+        if (extra->rule.effectType == EffectType::MarkTransformation) {
+            chr = extra->rule.mark() == Mark::Raw ? target->rule.key : addMarkToChar(chr, extra->rule.effect);
+        } else if (extra->rule.effectType == EffectType::ToneTransformation) {
+            chr = addToneToChar(chr, extra->rule.effect);
         }
     }
     return chr;
@@ -128,9 +173,9 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
 }
 
 [[nodiscard]] Transformation* findToneTarget(const CompositionView& composition) noexcept {
-    std::vector<Transformation*> vowels;
-    vowels.reserve(3);
-    for (Transformation* trans : composition) {
+    SmallList<Transformation*, 4> vowels;
+    for (std::size_t index = 0; index < composition.size(); ++index) {
+        Transformation* trans = composition[index];
         if (trans->rule.effectType == EffectType::Appending && isVowel(trans->rule.effectOn)) {
             vowels.push_back(trans);
         }
@@ -148,11 +193,12 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
         vowelShape.push_back(stripToneAndMark(renderTargetChar(composition, vowel)));
     }
     bool hasTrailingConsonant = false;
-    for (auto it = composition.rbegin(); it != composition.rend(); ++it) {
-        if ((*it)->rule.effectType != EffectType::Appending || (*it)->rule.key == 0) {
+    for (std::size_t index = composition.size(); index > 0; --index) {
+        Transformation* trans = composition[index - 1];
+        if (trans->rule.effectType != EffectType::Appending || trans->rule.key == 0) {
             continue;
         }
-        hasTrailingConsonant = !isVowel((*it)->rule.effectOn);
+        hasTrailingConsonant = !isVowel(trans->rule.effectOn);
         break;
     }
 
@@ -195,12 +241,7 @@ bool isVowel(char32_t chr) noexcept {
 }
 
 CompositionView makeCompositionView(std::deque<Transformation>& composition) {
-    CompositionView view;
-    view.reserve(composition.size());
-    for (Transformation& trans : composition) {
-        view.push_back(&trans);
-    }
-    return view;
+    return CompositionView{&composition, 0, composition.size()};
 }
 
 CompositionView extractLastSyllable(const CompositionView& composition) {
@@ -213,31 +254,35 @@ CompositionView extractLastSyllable(const CompositionView& composition) {
             break;
         }
     }
-    return CompositionView(composition.begin() + static_cast<std::ptrdiff_t>(start), composition.end());
+    return CompositionView{composition.composition, composition.begin + start, composition.end};
 }
 
 PendingTransformation findMarkTarget(const CompositionView& composition,
-                                     const std::vector<Rule>& applicableRules) noexcept {
+                                     RuleSpan applicableRules) noexcept {
     const std::u32string current = flattenVietnameseView(composition, true, false, false);
-    for (const Rule& rule : applicableRules) {
-        if (rule.effectType != EffectType::MarkTransformation) {
-            continue;
+    Transformation* lastAppending = nullptr;
+    for (std::size_t index = composition.size(); index > 0; --index) {
+        Transformation* trans = composition[index - 1];
+        if (trans->rule.effectType == EffectType::Appending && trans->rule.key != 0) {
+            lastAppending = trans;
+            break;
         }
-        for (auto it = composition.rbegin(); it != composition.rend(); ++it) {
-            Transformation* trans = *it;
-            if (trans->rule.effectType != EffectType::Appending || trans->rule.effectOn != rule.effectOn) {
+    }
+    for (std::size_t index = composition.size(); index > 0; --index) {
+        Transformation* trans = composition[index - 1];
+        for (const Rule& rule : applicableRules) {
+            if (rule.effectType != EffectType::MarkTransformation || rule.effect == 0 || trans->rule.result != rule.effectOn) {
                 continue;
             }
-            std::u32string mutated = current;
-            const char32_t rendered = renderTargetChar(composition, trans);
-            for (std::size_t index = mutated.size(); index > 0; --index) {
-                if (mutated[index - 1] == rendered) {
-                    mutated[index - 1] = addMarkToChar(mutated[index - 1], rule.effect);
-                    break;
-                }
+            Transformation probe;
+            probe.rule = rule;
+            probe.target = findRootTarget(trans);
+            const std::u32string mutated = flattenVietnameseView(composition, true, false, false, &probe);
+            if (mutated == current) {
+                continue;
             }
-            if (mutated != current && validateWord(mutated, false)) {
-                return PendingTransformation{rule, findRootTarget(trans), false};
+            if (validateWord(mutated, false) || probe.target == lastAppending) {
+                return PendingTransformation{rule, probe.target, false};
             }
         }
     }
@@ -245,20 +290,18 @@ PendingTransformation findMarkTarget(const CompositionView& composition,
 }
 
 PendingTransformation findTarget(const CompositionView& composition,
-                                 const std::vector<Rule>& applicableRules) noexcept {
+                                 RuleSpan applicableRules) noexcept {
     const std::u32string current = flattenVietnameseView(composition, true, false, false);
     for (const Rule& rule : applicableRules) {
         if (rule.effectType == EffectType::ToneTransformation) {
+            if (!hasValidTone(composition, rule.tone())) {
+                continue;
+            }
             if (Transformation* target = findToneTarget(composition); target != nullptr) {
-                std::u32string mutated = current;
-                const char32_t rendered = renderTargetChar(composition, target);
-                for (std::size_t index = mutated.size(); index > 0; --index) {
-                    if (mutated[index - 1] == rendered) {
-                        mutated[index - 1] = addToneToChar(mutated[index - 1], rule.effect);
-                        break;
-                    }
-                }
-                if (mutated != current) {
+                Transformation probe;
+                probe.rule = rule;
+                probe.target = target;
+                if (flattenVietnameseView(composition, true, false, false, &probe) != current) {
                     return PendingTransformation{rule, target, false};
                 }
             }
@@ -272,8 +315,8 @@ PendingTransformation findTarget(const CompositionView& composition,
     const std::u32string normalized = flattenVietnameseView(composition, true, true, true);
     if (normalized.find(U"uo") != std::u32string::npos || normalized.find(U"ươ") != std::u32string::npos || normalized.find(U"ưo") != std::u32string::npos) {
         Transformation* vowelTarget = nullptr;
-        for (auto it = composition.rbegin(); it != composition.rend(); ++it) {
-            Transformation* trans = *it;
+        for (std::size_t index = composition.size(); index > 0; --index) {
+            Transformation* trans = composition[index - 1];
             if (trans->rule.effectType == EffectType::Appending && isVowel(trans->rule.effectOn)) {
                 vowelTarget = trans;
                 break;
@@ -290,27 +333,44 @@ PendingTransformation findTarget(const CompositionView& composition,
     return {};
 }
 
-std::vector<PendingTransformation> generateUndoTransformations(const CompositionView& composition,
-                                                               const std::vector<Rule>& applicableRules) {
-    std::vector<PendingTransformation> result;
+PendingTransformationList generateUndoTransformations(const CompositionView& composition,
+                                                      RuleSpan applicableRules) {
+    PendingTransformationList result;
+    const std::u32string current = flattenVietnameseView(composition, true, true, false);
     for (const Rule& rule : applicableRules) {
         if (rule.effectType == EffectType::ToneTransformation) {
-            for (auto it = composition.rbegin(); it != composition.rend(); ++it) {
-                if ((*it)->rule.effectType == EffectType::ToneTransformation && (*it)->target != nullptr) {
-                    Rule undoRule{};
-                    undoRule.effectType = EffectType::ToneTransformation;
-                    undoRule.effect = static_cast<std::uint8_t>(Tone::None);
-                    result.push_back(PendingTransformation{undoRule, (*it)->target, false});
-                    return result;
-                }
+            if (!hasValidTone(composition, rule.tone())) {
+                continue;
+            }
+            Transformation* target = findToneTarget(composition);
+            if (target == nullptr) {
+                continue;
+            }
+            Rule undoRule{};
+            undoRule.effectType = EffectType::ToneTransformation;
+            undoRule.effect = static_cast<std::uint8_t>(Tone::None);
+            Transformation probe;
+            probe.rule = undoRule;
+            probe.target = target;
+            if (flattenVietnameseView(composition, true, true, false, &probe) != current) {
+                result.push_back(PendingTransformation{undoRule, target, false});
+                return result;
             }
         } else if (rule.effectType == EffectType::MarkTransformation) {
-            for (auto it = composition.rbegin(); it != composition.rend(); ++it) {
-                if ((*it)->rule.effectType == EffectType::MarkTransformation && (*it)->target != nullptr) {
+            for (std::size_t index = composition.size(); index > 0; --index) {
+                Transformation* trans = composition[index - 1];
+                if (trans->rule.result == rule.effectOn) {
+                    Transformation* target = findRootTarget(trans);
                     Rule undoRule{};
                     undoRule.effectType = EffectType::MarkTransformation;
                     undoRule.effect = static_cast<std::uint8_t>(Mark::None);
-                    result.push_back(PendingTransformation{undoRule, (*it)->target, false});
+                    Transformation probe;
+                    probe.rule = undoRule;
+                    probe.target = target;
+                    if (flattenVietnameseView(composition, true, true, false, &probe) == current) {
+                        continue;
+                    }
+                    result.push_back(PendingTransformation{undoRule, target, false});
                     return result;
                 }
             }
@@ -319,10 +379,10 @@ std::vector<PendingTransformation> generateUndoTransformations(const Composition
     return result;
 }
 
-std::vector<PendingTransformation> generateFallbackTransformations(const std::vector<Rule>& applicableRules,
-                                                                   char32_t lowerKey,
-                                                                   bool isUpperCase) {
-    std::vector<PendingTransformation> result;
+PendingTransformationList generateFallbackTransformations(RuleSpan applicableRules,
+                                                          char32_t lowerKey,
+                                                          bool isUpperCase) {
+    PendingTransformationList result;
     for (const Rule& rule : applicableRules) {
         if (rule.effectType != EffectType::Appending) {
             continue;
@@ -331,12 +391,17 @@ std::vector<PendingTransformation> generateFallbackTransformations(const std::ve
         baseRule.effectOn = toLowerCodePoint(baseRule.effectOn);
         baseRule.result = baseRule.effectOn;
         result.push_back(PendingTransformation{baseRule, nullptr, isUpperCase || rule.effectOn != baseRule.effectOn});
-        for (const Rule& appendedRule : rule.appendedRules) {
-            Rule virtualRule = appendedRule;
+        for (std::size_t index = 0; index < rule.appendedCount; ++index) {
+            Rule virtualRule{};
             virtualRule.key = 0;
-            virtualRule.effectOn = toLowerCodePoint(virtualRule.effectOn);
+            virtualRule.effectType = EffectType::Appending;
+            virtualRule.effectOn = toLowerCodePoint(rule.appendedChars[index].effectOn);
             virtualRule.result = virtualRule.effectOn;
-            result.push_back(PendingTransformation{virtualRule, nullptr, isUpperCase || appendedRule.effectOn != virtualRule.effectOn});
+            result.push_back(PendingTransformation{
+                virtualRule,
+                nullptr,
+                isUpperCase || rule.appendedChars[index].effectOn != virtualRule.effectOn,
+            });
         }
         return result;
     }
@@ -350,11 +415,12 @@ std::vector<PendingTransformation> generateFallbackTransformations(const std::ve
     return result;
 }
 
-std::vector<PendingTransformation> refreshLastToneTarget(const CompositionView& composition) {
+PendingTransformationList refreshLastToneTarget(const CompositionView& composition) {
     Transformation* latestTone = nullptr;
-    for (auto it = composition.rbegin(); it != composition.rend(); ++it) {
-        if ((*it)->rule.effectType == EffectType::ToneTransformation && (*it)->target != nullptr) {
-            latestTone = *it;
+    for (std::size_t index = composition.size(); index > 0; --index) {
+        Transformation* trans = composition[index - 1];
+        if (trans->rule.effectType == EffectType::ToneTransformation && trans->target != nullptr) {
+            latestTone = trans;
             break;
         }
     }
@@ -370,7 +436,10 @@ std::vector<PendingTransformation> refreshLastToneTarget(const CompositionView& 
     undoRule.effect = static_cast<std::uint8_t>(Tone::None);
     Rule overrideRule = latestTone->rule;
     overrideRule.key = 0;
-    return {PendingTransformation{undoRule, latestTone->target, false}, PendingTransformation{overrideRule, newTarget, false}};
+    PendingTransformationList result;
+    result.push_back(PendingTransformation{undoRule, latestTone->target, false});
+    result.push_back(PendingTransformation{overrideRule, newTarget, false});
+    return result;
 }
 
 std::u32string flattenVietnamese(const std::deque<Transformation>& composition, bool lowerCase) {
@@ -417,20 +486,54 @@ std::u32string currentWord(const std::deque<Transformation>& composition) {
 }
 
 Segments splitWord(std::u32string_view word) noexcept {
-    std::size_t firstVowelIndex = 0;
-    while (firstVowelIndex < word.size() && !isVowel(word[firstVowelIndex])) {
-        ++firstVowelIndex;
+    if (word.empty()) {
+        return {};
     }
-    std::size_t trailingConsonantIndex = word.size();
-    while (trailingConsonantIndex > firstVowelIndex && !isVowel(word[trailingConsonantIndex - 1])) {
-        --trailingConsonantIndex;
+
+    std::u32string_view head = word;
+    std::u32string_view lastConsonant;
+    if (!isVowel(word.back())) {
+        std::size_t begin = word.size() - 1;
+        while (begin > 0 && !isVowel(word[begin - 1])) {
+            --begin;
+        }
+        head = word.substr(0, begin);
+        lastConsonant = word.substr(begin);
     }
-    return {word.substr(0, firstVowelIndex), word.substr(firstVowelIndex, trailingConsonantIndex - firstVowelIndex), word.substr(trailingConsonantIndex)};
+
+    std::u32string_view firstConsonant = head;
+    std::u32string_view vowel;
+    if (!head.empty() && isVowel(head.back())) {
+        std::size_t begin = head.size() - 1;
+        while (begin > 0 && isVowel(head[begin - 1])) {
+            --begin;
+        }
+        firstConsonant = head.substr(0, begin);
+        vowel = head.substr(begin);
+    }
+
+    if (head.empty() && !lastConsonant.empty()) {
+        return {lastConsonant, {}, {}};
+    }
+
+    if (firstConsonant.size() == 1 && !vowel.empty()) {
+        const bool isGi =
+            firstConsonant[0] == U'g' && vowel[0] == U'i' && vowel.size() > 1 &&
+            !(vowel.size() > 1 && vowel[1] == U'e' && !lastConsonant.empty());
+        const bool isQu = firstConsonant[0] == U'q' && vowel[0] == U'u';
+        if (isGi || isQu) {
+            firstConsonant = head.substr(0, firstConsonant.size() + 1);
+            vowel = head.substr(firstConsonant.size());
+        }
+    }
+
+    return {firstConsonant, vowel, lastConsonant};
 }
 
 std::deque<Transformation> breakComposition(const CompositionView& composition) {
     std::deque<Transformation> result;
-    for (const Transformation* trans : composition) {
+    for (std::size_t index = 0; index < composition.size(); ++index) {
+        const Transformation* trans = composition[index];
         if (trans->rule.key == 0) {
             continue;
         }

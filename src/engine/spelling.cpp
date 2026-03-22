@@ -58,17 +58,17 @@ constexpr std::array<std::array<std::uint8_t, 6>, 5> kCvMatrix{{
 }};
 constexpr std::array<std::uint8_t, 5> kCvMatrixSizes{{4, 6, 5, 1, 1}};
 
-constexpr std::array<std::array<std::uint8_t, 2>, 8> kVcMatrix{{
-    {{0, 2}},
-    {{0, 1}},
-    {{1, 2}},
-    {{1, 2}},
-    {{0xFF, 0xFF}},
-    {{0xFF, 0xFF}},
-    {{3, 0xFF}},
-    {{4, 0xFF}},
+constexpr std::array<std::array<std::uint8_t, 3>, 8> kVcMatrix{{
+    {{0, 2, 0xFF}},
+    {{0, 1, 2}},
+    {{1, 2, 0xFF}},
+    {{1, 2, 0xFF}},
+    {{0xFF, 0xFF, 0xFF}},
+    {{0xFF, 0xFF, 0xFF}},
+    {{3, 0xFF, 0xFF}},
+    {{4, 0xFF, 0xFF}},
 }};
-constexpr std::array<std::uint8_t, 8> kVcMatrixSizes{{2, 2, 2, 2, 0, 0, 1, 1}};
+constexpr std::array<std::uint8_t, 8> kVcMatrixSizes{{2, 3, 2, 2, 0, 0, 1, 1}};
 
 bool matchesRow(const TokenRow& row,
                               std::u32string_view input,

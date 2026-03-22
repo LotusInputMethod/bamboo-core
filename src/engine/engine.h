@@ -31,9 +31,10 @@ public:
     void restoreLastWord(bool toVietnamese) override;
 
 private:
-    [[nodiscard]] std::vector<Rule> applicableRules(char32_t key) const;
+    [[nodiscard]] RuleSpan applicableRules(char32_t key) const noexcept;
     [[nodiscard]] bool canProcessKey(char32_t key) const noexcept;
     void appendRawKey(char32_t key, bool isUpperCase);
+    void handleBackspace();
 
     api::Mode mode_{api::Mode::Vietnamese};
     std::string dataDirPath_;

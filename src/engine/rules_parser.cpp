@@ -165,12 +165,7 @@ constexpr std::u32string_view kVowels = U"aàáảãạăằắẳẵặâầấ
     rule.effectOn = chars.front();
     rule.result = chars.front();
     for (std::size_t index = 1; index < chars.size(); ++index) {
-        Rule appended;
-        appended.key = key;
-        appended.effectType = EffectType::Appending;
-        appended.effectOn = chars[index];
-        appended.result = chars[index];
-        rule.appendedRules.push_back(appended);
+        rule.appendChar(chars[index], chars[index]);
     }
     return rule;
 }
@@ -190,8 +185,16 @@ InputMethod parseInputMethod(std::string_view inputMethodName) {
 
     for (std::size_t index = 0; index < definition->size; ++index) {
         const auto& mapping = definition->mappings[index];
+        const std::size_t begin = result.rules.size();
         std::vector<Rule> parsedRules = parseRules(mapping.key, mapping.action);
         result.rules.insert(result.rules.end(), parsedRules.begin(), parsedRules.end());
+        if (result.ruleIndexSize < result.ruleIndex.size()) {
+            result.ruleIndex[result.ruleIndexSize++] = KeyRuleIndex{
+                mapping.key,
+                static_cast<std::uint16_t>(begin),
+                static_cast<std::uint16_t>(result.rules.size() - begin),
+            };
+        }
         if (mapping.action.find("uo") != std::string_view::npos || mapping.action.find("UO") != std::string_view::npos) {
             result.superKeys.push_back(mapping.key);
         }

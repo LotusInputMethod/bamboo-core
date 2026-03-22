@@ -36,6 +36,62 @@ namespace {
     return output;
 }
 
+[[nodiscard]] int findVowelPosition(char32_t chr) noexcept {
+    static constexpr std::u32string_view kVowels =
+        U"aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵ";
+    const auto pos = kVowels.find(chr);
+    return pos == std::u32string_view::npos ? -1 : static_cast<int>(pos);
+}
+
+[[nodiscard]] char32_t stripTone(char32_t chr) noexcept {
+    const int position = findVowelPosition(chr);
+    if (position < 0) {
+        return chr;
+    }
+    return static_cast<char32_t>(
+        U"aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵ"
+            [static_cast<std::size_t>(position - (position % 6))]);
+}
+
+[[nodiscard]] std::u32string stripTone(std::u32string_view input) {
+    std::u32string output;
+    output.reserve(input.size());
+    for (char32_t chr : input) {
+        output.push_back(stripTone(chr));
+    }
+    return output;
+}
+
+[[nodiscard]] bool isBackspaceKey(char32_t key) noexcept {
+    return key == U'\b' || key == 0x7f;
+}
+
+[[nodiscard]] char32_t toUpperCodePoint(char32_t codePoint) noexcept {
+    if (codePoint >= U'a' && codePoint <= U'z') {
+        return codePoint - 32;
+    }
+    switch (codePoint) {
+    case U'đ': return U'Đ';
+    case U'â': return U'Â';
+    case U'ă': return U'Ă';
+    case U'ê': return U'Ê';
+    case U'ô': return U'Ô';
+    case U'ơ': return U'Ơ';
+    case U'ư': return U'Ư';
+    default: return codePoint;
+    }
+}
+
+void appendPending(std::deque<Transformation>& composition, const PendingTransformationList& pending) {
+    for (const PendingTransformation& item : pending) {
+        Transformation trans;
+        trans.rule = item.rule;
+        trans.target = item.target;
+        trans.isUpperCase = item.isUpperCase;
+        composition.push_back(trans);
+    }
+}
+
 }  // namespace
 
 Engine::Engine(std::string_view dataDirPath, std::string_view inputMethod)
@@ -56,15 +112,7 @@ void Engine::reset() {
     encodedCacheDirty_ = true;
 }
 
-std::vector<Rule> Engine::applicableRules(char32_t key) const {
-    std::vector<Rule> rules;
-    for (const Rule& rule : inputMethod_.rules) {
-        if (rule.key == key) {
-            rules.push_back(rule);
-        }
-    }
-    return rules;
-}
+RuleSpan Engine::applicableRules(char32_t key) const noexcept { return inputMethod_.rulesFor(key); }
 
 bool Engine::canProcessKey(char32_t key) const noexcept {
     if ((key >= U'a' && key <= U'z') || (key >= U'A' && key <= U'Z')) {
@@ -84,7 +132,23 @@ void Engine::appendRawKey(char32_t key, bool isUpperCase) {
     encodedCacheDirty_ = true;
 }
 
+void Engine::handleBackspace() {
+    if (composition_.empty()) {
+        return;
+    }
+    composition_.pop_back();
+    while (!composition_.empty() && composition_.back().rule.key == 0) {
+        composition_.pop_back();
+    }
+    encodedCacheDirty_ = true;
+}
+
 void Engine::processKey(char32_t key) {
+    if (mode_ != api::Mode::English && isBackspaceKey(key)) {
+        handleBackspace();
+        return;
+    }
+
     const char32_t lowerKey = toLowerCodePoint(key);
     const bool isUpperCase = key != lowerKey;
 
@@ -93,7 +157,7 @@ void Engine::processKey(char32_t key) {
         return;
     }
 
-    const std::vector<Rule> rules = applicableRules(lowerKey);
+    const RuleSpan rules = applicableRules(lowerKey);
     if (std::find(inputMethod_.superKeys.begin(), inputMethod_.superKeys.end(), lowerKey) != inputMethod_.superKeys.end()) {
         const std::u32string word = currentWord(composition_);
         if (word.size() >= 2) {
@@ -101,6 +165,11 @@ void Engine::processKey(char32_t key) {
             const bool isUoShortcut = tail == U"uo" || tail == U"ưo";
             const bool isUongShortcut = word.size() >= 5 && word.substr(word.size() - 5) == U"uong";
             if (isUoShortcut || isUongShortcut) {
+                auto isValidShortcutWord = [](std::u32string_view candidate) {
+                    Spelling spelling;
+                    const Segments segments = splitWord(candidate);
+                    return spelling.isValidCvc(segments.firstConsonant, segments.vowel, segments.lastConsonant, true);
+                };
                 Transformation* uTarget = nullptr;
                 Transformation* oTarget = nullptr;
                 for (auto it = composition_.rbegin(); it != composition_.rend(); ++it) {
@@ -132,13 +201,20 @@ void Engine::processKey(char32_t key) {
                         trans.isUpperCase = isUpperCase;
                         composition_.push_back(trans);
                     }
-                    if (((word.size() == 2 && tail == U"uo") || isUongShortcut) &&
+                    if ((isUoShortcut || isUongShortcut) &&
                         rule.effectType == EffectType::MarkTransformation && rule.effectOn == U'u' && uTarget != nullptr) {
-                        Transformation trans;
-                        trans.rule = rule;
-                        trans.target = uTarget;
-                        trans.isUpperCase = isUpperCase;
-                        composition_.push_back(trans);
+                        std::u32string mutated = word;
+                        if (!mutated.empty() && mutated.back() == U'o') {
+                            mutated.back() = U'ơ';
+                        }
+                        if (!isValidShortcutWord(mutated) || isUongShortcut) {
+                            Transformation trans;
+                            trans.rule = rule;
+                            trans.rule.key = 0;
+                            trans.target = uTarget;
+                            trans.isUpperCase = isUpperCase;
+                            composition_.push_back(trans);
+                        }
                     }
                 }
                 if (oTarget != nullptr) {
@@ -150,7 +226,7 @@ void Engine::processKey(char32_t key) {
     }
 
     CompositionView syllable = extractLastSyllable(makeCompositionView(composition_));
-    std::vector<PendingTransformation> pending;
+    PendingTransformationList pending;
 
     if (const PendingTransformation direct = findTarget(syllable, rules); direct.target != nullptr) {
         pending.push_back(direct);
@@ -168,22 +244,10 @@ void Engine::processKey(char32_t key) {
         }
     }
 
-    for (PendingTransformation& item : pending) {
-        Transformation trans;
-        trans.rule = item.rule;
-        trans.target = item.target;
-        trans.isUpperCase = item.isUpperCase;
-        composition_.push_back(trans);
-    }
+    appendPending(composition_, pending);
 
     CompositionView updated = extractLastSyllable(makeCompositionView(composition_));
-    for (PendingTransformation& item : refreshLastToneTarget(updated)) {
-        Transformation trans;
-        trans.rule = item.rule;
-        trans.target = item.target;
-        trans.isUpperCase = item.isUpperCase;
-        composition_.push_back(trans);
-    }
+    appendPending(composition_, refreshLastToneTarget(updated));
 
     encodedCacheDirty_ = true;
 }
@@ -204,35 +268,34 @@ std::string Engine::getProcessedString() const {
 }
 
 bool Engine::isValid(bool inputIsFullComplete) const {
-    if (mode_ == api::Mode::English) {
-        return true;
-    }
     const std::u32string word = currentWord(composition_);
     if (word.empty()) {
         return true;
     }
-    const Segments segments = splitWord(word);
+    const std::u32string toneLessWord = stripTone(word);
+    const Segments segments = splitWord(toneLessWord);
     Spelling spelling;
     return spelling.isValidCvc(segments.firstConsonant, segments.vowel, segments.lastConsonant, inputIsFullComplete);
 }
 
-void Engine::removeLastChar(bool /*refreshLastToneTarget*/) {
-    if (!composition_.empty()) {
-        composition_.pop_back();
-        while (!composition_.empty() && composition_.back().rule.key == 0) {
-            composition_.pop_back();
-        }
-        encodedCacheDirty_ = true;
-    }
-}
-
-void Engine::restoreLastWord(bool toVietnamese) {
-    if (toVietnamese) {
-        mode_ = api::Mode::Vietnamese;
+void Engine::removeLastChar(bool refreshLastToneTargetFlag) {
+    handleBackspace();
+    if (!refreshLastToneTargetFlag) {
         return;
     }
 
+    CompositionView updated = extractLastSyllable(makeCompositionView(composition_));
+    appendPending(composition_, refreshLastToneTarget(updated));
+    encodedCacheDirty_ = true;
+}
+
+void Engine::restoreLastWord(bool toVietnamese) {
     CompositionView syllable = extractLastSyllable(makeCompositionView(composition_));
+    if (syllable.empty()) {
+        mode_ = toVietnamese ? api::Mode::Vietnamese : api::Mode::English;
+        return;
+    }
+
     std::deque<Transformation> broken = breakComposition(syllable);
     while (!composition_.empty()) {
         const Transformation& back = composition_.back();
@@ -242,10 +305,23 @@ void Engine::restoreLastWord(bool toVietnamese) {
         }
         composition_.pop_back();
     }
-    for (Transformation& trans : broken) {
-        composition_.push_back(trans);
+
+    if (!toVietnamese) {
+        for (Transformation& trans : broken) {
+            composition_.push_back(trans);
+        }
+        mode_ = api::Mode::English;
+        encodedCacheDirty_ = true;
+        return;
     }
-    mode_ = api::Mode::English;
+
+    const api::Mode previousMode = mode_;
+    mode_ = api::Mode::Vietnamese;
+    for (const Transformation& trans : broken) {
+        const char32_t key = trans.isUpperCase ? toUpperCodePoint(trans.rule.key) : trans.rule.key;
+        processKey(key);
+    }
+    mode_ = previousMode == api::Mode::English ? api::Mode::Vietnamese : previousMode;
     encodedCacheDirty_ = true;
 }
 
