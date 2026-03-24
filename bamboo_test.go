@@ -226,11 +226,12 @@ func TestProcessAlooString(t *testing.T) {
 	}
 }
 
-func TestSpellingCheckForGiw(t *testing.T) {
+func TestSpellingCheckForGiư(t *testing.T) {
 	ng := newStdEngine()
-	ng.ProcessString("giw", VietnameseMode)
+	// In Telex 2, ']' is used for 'ư'
+	ng.ProcessString("gi]", VietnameseMode)
 	if ng.IsValid(false) == false {
-		t.Errorf("Process giw, got [%v] expected [%v]", ng.IsValid(false) == false, true)
+		t.Errorf("Process gi], got [%v] expected [%v]", ng.IsValid(false) == false, true)
 	}
 }
 
@@ -643,6 +644,41 @@ func TestDoubleTyping(t *testing.T) {
 	}
 	ng.Reset()
 }
+
+func TestEw2uEnabled(t *testing.T) {
+	// Standard Telex (no w -> ư rule)
+	im := ParseInputMethod(InputMethodDefinitions, "Telex")
+
+	// Flag OFF
+	ng := NewEngine(im, EstdFlags&^Ew2uEnabled)
+	ng.ProcessKey('w', VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode) != "w" {
+		t.Errorf("Ew2uEnabled OFF: Process [w], got [%s] expected [w]", ng.GetProcessedString(VietnameseMode))
+	}
+
+	// Flag ON - Start of word
+	ng = NewEngine(im, EstdFlags|Ew2uEnabled)
+	ng.ProcessKey('w', VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode) != "ư" {
+		t.Errorf("Ew2uEnabled ON (start): Process [w], got [%s] expected [ư]", ng.GetProcessedString(VietnameseMode))
+	}
+
+	// Flag ON - Not start of word (bw)
+	ng.Reset()
+	ng.ProcessKey('b', VietnameseMode)
+	ng.ProcessKey('w', VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode) != "bư" {
+		t.Errorf("Ew2uEnabled ON (not start): Process [bw], got [%s] expected [bư]", ng.GetProcessedString(VietnameseMode))
+	}
+
+	// Flag ON - Uppercase start of word
+	ng.Reset()
+	ng.ProcessKey('W', VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode) != "Ư" {
+		t.Errorf("Ew2uEnabled ON (upper start): Process [W], got [%s] expected [Ư]", ng.GetProcessedString(VietnameseMode))
+	}
+}
+
 
 var ng = newStdEngine()
 

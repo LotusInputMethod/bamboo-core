@@ -80,7 +80,7 @@ var InputMethodDefinitions = map[string]InputMethodDefinition{
 		"a": "A_Â",
 		"e": "E_Ê",
 		"o": "O_Ô",
-		"w": "UOA_ƯƠĂ__Ư",
+		"w": "UOA_ƯƠĂ",
 		"d": "D_Đ",
 		"]": "__ư",
 		"[": "__ơ",
@@ -154,19 +154,6 @@ var InputMethodDefinitions = map[string]InputMethodDefinition{
 		"_":  "UO_ƯƠ",
 		"ç":  "A_Ă",
 		"à":  "D_Đ",
-	},
-	"Telex W": {
-		"z": "XoaDauThanh",
-		"s": "DauSac",
-		"f": "DauHuyen",
-		"r": "DauHoi",
-		"x": "DauNga",
-		"j": "DauNang",
-		"a": "A_Â",
-		"e": "E_Ê",
-		"o": "O_Ô",
-		"w": "UOA_ƯƠĂ__Ư",
-		"d": "D_Đ",
 	},
 }
 

@@ -30,8 +30,10 @@ const (
 	EfreeToneMarking uint = 1 << iota
 	EstdToneStyle
 	EautoCorrectEnabled
-	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled
+	Ew2uEnabled
+	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled
 )
+
 
 type Transformation struct {
 	Rule        Rule
@@ -121,6 +123,15 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		// If none of the applicable_rules can actually be applied then this new
 		// transformation fall-backs to an APPENDING one.
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
+		if e.flags&Ew2uEnabled != 0 && lowerKey == 'w' && len(transformations) > 0 {
+			if transformations[0].Rule.Result == 'w' {
+				transformations[0].Rule.Result = 'ư'
+				transformations[0].Rule.EffectOn = 'ư'
+			} else if transformations[0].Rule.Result == 'W' {
+				transformations[0].Rule.Result = 'Ư'
+				transformations[0].Rule.EffectOn = 'Ư'
+			}
+		}
 		var newComposition = append(composition, transformations...)
 
 		// Implement the uwo+ typing shortcut by creating a virtual
