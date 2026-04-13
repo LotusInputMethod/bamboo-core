@@ -45,6 +45,7 @@ type IEngine interface {
 	SetFlag(uint)
 	GetInputMethod() InputMethod
 	ProcessKey(rune, Mode)
+	SetW2UMode(int)
 	ProcessString(string, Mode)
 	GetProcessedString(Mode) string
 	IsValid(bool) bool
@@ -59,6 +60,7 @@ type BambooEngine struct {
 	composition []*Transformation
 	inputMethod InputMethod
 	flags       uint
+	w2uMode     int // 0: Disabled, 1: Middle-Only, 2: Everywhere
 }
 
 func NewEngine(inputMethod InputMethod, flag uint) IEngine {
@@ -75,6 +77,10 @@ func (e *BambooEngine) GetInputMethod() InputMethod {
 
 func (e *BambooEngine) SetFlag(flag uint) {
 	e.flags = flag
+}
+
+func (e *BambooEngine) SetW2UMode(mode int) {
+	e.w2uMode = mode
 }
 
 func (e *BambooEngine) GetFlag(flag uint) uint {
@@ -123,7 +129,18 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		// If none of the applicable_rules can actually be applied then this new
 		// transformation fall-backs to an APPENDING one.
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
-		if e.flags&Ew2uEnabled != 0 && lowerKey == 'w' && len(transformations) > 0 {
+		
+		// Unified Modular W2U Logic
+		canApplyW2U := false
+		if e.w2uMode == 1 {
+			if len(composition) > 0 {
+				canApplyW2U = true
+			}
+		} else if e.w2uMode == 2 {
+			canApplyW2U = true
+		}
+
+		if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
 			if transformations[0].Rule.Result == 'w' {
 				transformations[0].Rule.Result = 'ư'
 				transformations[0].Rule.EffectOn = 'ư'
