@@ -27,6 +27,13 @@ const (
 )
 
 const (
+	W2uFollowFlags = -1
+	W2uDisabled    = 0
+	W2uMiddleOnly  = 1
+	W2uEverywhere  = 2
+)
+
+const (
 	EfreeToneMarking uint = 1 << iota
 	EstdToneStyle
 	EautoCorrectEnabled
@@ -60,14 +67,14 @@ type BambooEngine struct {
 	composition []*Transformation
 	inputMethod InputMethod
 	flags       uint
-	w2uMode     int // -1: Follow flags, 0: Disabled, 1: Middle-Only, 2: Everywhere
+	w2uMode     int // W2uFollowFlags, W2uDisabled, W2uMiddleOnly, W2uEverywhere
 }
 
 func NewEngine(inputMethod InputMethod, flag uint) IEngine {
 	engine := BambooEngine{
 		inputMethod: inputMethod,
 		flags:       flag,
-		w2uMode:     -1,
+		w2uMode:     W2uFollowFlags,
 	}
 	return &engine
 }
@@ -81,7 +88,9 @@ func (e *BambooEngine) SetFlag(flag uint) {
 }
 
 func (e *BambooEngine) SetW2UMode(mode int) {
-	e.w2uMode = mode
+	if mode >= W2uDisabled && mode <= W2uEverywhere {
+		e.w2uMode = mode
+	}
 }
 
 func (e *BambooEngine) GetFlag(flag uint) uint {
@@ -132,16 +141,9 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
 		
 		// Unified Modular W2U Logic
-		var canApplyW2U bool
-		if e.w2uMode == -1 {
-			canApplyW2U = e.flags&Ew2uEnabled != 0
-		} else if e.w2uMode == 1 {
-			if len(composition) > 0 {
-				canApplyW2U = true
-			}
-		} else if e.w2uMode == 2 {
-			canApplyW2U = true
-		}
+		canApplyW2U := (e.w2uMode == W2uEverywhere) ||
+			(e.w2uMode == W2uMiddleOnly && len(composition) > 0) ||
+			(e.w2uMode == W2uFollowFlags && e.flags&Ew2uEnabled != 0)
 
 		if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
 			if transformations[0].Rule.Result == 'w' {
