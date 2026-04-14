@@ -27,6 +27,13 @@ const (
 )
 
 const (
+	W2uFollowFlags = -1
+	W2uDisabled    = 0
+	W2uNonStart    = 1
+	W2uEverywhere  = 2
+)
+
+const (
 	EfreeToneMarking uint = 1 << iota
 	EstdToneStyle
 	EautoCorrectEnabled
@@ -45,6 +52,7 @@ type IEngine interface {
 	SetFlag(uint)
 	GetInputMethod() InputMethod
 	ProcessKey(rune, Mode)
+	SetW2UMode(int)
 	ProcessString(string, Mode)
 	GetProcessedString(Mode) string
 	IsValid(bool) bool
@@ -59,12 +67,14 @@ type BambooEngine struct {
 	composition []*Transformation
 	inputMethod InputMethod
 	flags       uint
+	w2uMode     int // W2uFollowFlags, W2uDisabled, W2uNonStart, W2uEverywhere
 }
 
 func NewEngine(inputMethod InputMethod, flag uint) IEngine {
 	engine := BambooEngine{
 		inputMethod: inputMethod,
 		flags:       flag,
+		w2uMode:     W2uFollowFlags,
 	}
 	return &engine
 }
@@ -75,6 +85,12 @@ func (e *BambooEngine) GetInputMethod() InputMethod {
 
 func (e *BambooEngine) SetFlag(flag uint) {
 	e.flags = flag
+}
+
+func (e *BambooEngine) SetW2UMode(mode int) {
+	if mode >= W2uDisabled && mode <= W2uEverywhere {
+		e.w2uMode = mode
+	}
 }
 
 func (e *BambooEngine) GetFlag(flag uint) uint {
@@ -123,7 +139,13 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		// If none of the applicable_rules can actually be applied then this new
 		// transformation fall-backs to an APPENDING one.
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
-		if e.flags&Ew2uEnabled != 0 && lowerKey == 'w' && len(transformations) > 0 {
+		
+		// Unified Modular W2U Logic
+		canApplyW2U := (e.w2uMode == W2uEverywhere) ||
+			(e.w2uMode == W2uNonStart && len(composition) > 0) ||
+			(e.w2uMode == W2uFollowFlags && e.flags&Ew2uEnabled != 0)
+
+		if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
 			if transformations[0].Rule.Result == 'w' {
 				transformations[0].Rule.Result = 'ư'
 				transformations[0].Rule.EffectOn = 'ư'
