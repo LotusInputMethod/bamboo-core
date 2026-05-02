@@ -46,7 +46,7 @@ const (
 	EautoCorrectEnabled
 	Ew2uEnabled
 	EbracketTransformEnabled
-	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled | EbracketTransformEnabled
+	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled
 )
 
 
@@ -61,6 +61,7 @@ type IEngine interface {
 	GetInputMethod() InputMethod
 	ProcessKey(rune, Mode)
 	SetW2UMode(int)
+	SetBracketTransformMode(int)
 	ProcessString(string, Mode)
 	GetProcessedString(Mode) string
 	IsValid(bool) bool
@@ -104,7 +105,7 @@ func (e *BambooEngine) SetW2UMode(mode int) {
 }
 
 func (e *BambooEngine) SetBracketTransformMode(mode int) {
-	if mode >= BracketTransformDisabled && mode <= BracketTransformEverywhere {
+	if mode >= BracketTransformFollowFlags && mode <= BracketTransformEverywhere {
 		e.bracketTransformMode = mode
 	}
 }
@@ -114,19 +115,21 @@ func (e *BambooEngine) GetFlag(flag uint) uint {
 }
 
 func (e *BambooEngine) IsValid(inputIsFullComplete bool) bool {
-	var _, last = extractLastWord(e.composition, e.GetInputMethod().Keys)
+	keys := append(e.GetInputMethod().Keys, '[', ']', '{', '}')
+	var _, last = extractLastWord(e.composition, keys)
 	return isValid(last, inputIsFullComplete)
 }
 
 func (e *BambooEngine) GetProcessedString(mode Mode) string {
 	var tmp []*Transformation
+	keys := append(e.inputMethod.Keys, '[', ']', '{', '}')
 	if mode&FullText != 0 {
 		tmp = e.composition
 	} else if mode&PunctuationMode != 0 {
-		_, tmp = extractLastWordWithPunctuationMarks(e.composition, e.inputMethod.Keys)
+		_, tmp = extractLastWordWithPunctuationMarks(e.composition, keys)
 		return Flatten(tmp, VietnameseMode)
 	} else {
-		_, tmp = extractLastWord(e.composition, e.inputMethod.Keys)
+		_, tmp = extractLastWord(e.composition, keys)
 	}
 	return Flatten(tmp, mode)
 }
@@ -146,7 +149,14 @@ func (e *BambooEngine) findTargetByKey(composition []*Transformation, key rune) 
 }
 
 func (e *BambooEngine) CanProcessKey(key rune) bool {
-	return canProcessKey(key, e.inputMethod.Keys)
+	if canProcessKey(key, e.inputMethod.Keys) {
+		return true
+	}
+	lowerKey := unicode.ToLower(key)
+	if lowerKey == '[' || lowerKey == ']' || lowerKey == '{' || lowerKey == '}' {
+		return true
+	}
+	return false
 }
 
 func (e *BambooEngine) generateTransformations(composition []*Transformation, lowerKey rune, isUpperCase bool) []*Transformation {
@@ -155,53 +165,70 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		// If none of the applicable_rules can actually be applied then this new
 		// transformation fall-backs to an APPENDING one.
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
-		
+	}
+
 	canApplyBracket := (e.bracketTransformMode == BracketTransformEverywhere) ||
-		(e.bracketTransformMode == BracketTransformNonStart && len(composition) > 0) ||
+		(e.bracketTransformMode == BracketTransformNonStart && len(e.composition) > 0) ||
 		(e.bracketTransformMode == BracketTransformFollowFlags && e.flags&EbracketTransformEnabled != 0)
 
 	if canApplyBracket {
-		if lowerKey == '[' && len(transformations) > 0 {
-			if transformations[0].Rule.Result == '[' {
-				transformations[0].Rule.Result = 'ơ'
-				transformations[0].Rule.EffectOn = 'ơ'
-			} else if transformations[0].Rule.Result == '[' {
-				transformations[0].Rule.Result = 'Ơ'
-				transformations[0].Rule.EffectOn = 'Ơ'
+		if len(composition) > 0 {
+			lastTrans := composition[len(composition)-1]
+			if (lowerKey == '[' || lowerKey == '{') && (lastTrans.Rule.Key == '[' || lastTrans.Rule.Key == '{') && (lastTrans.Rule.Result == 'ơ' || lastTrans.Rule.Result == 'Ơ') {
+				return []*Transformation{{
+					Target: lastTrans,
+					Rule: Rule{
+						EffectType: MarkTransformation,
+						Effect:     uint8(MarkRaw),
+					},
+				}}
+			}
+			if (lowerKey == ']' || lowerKey == '}') && (lastTrans.Rule.Key == ']' || lastTrans.Rule.Key == '}') && (lastTrans.Rule.Result == 'ư' || lastTrans.Rule.Result == 'Ư') {
+				return []*Transformation{{
+					Target: lastTrans,
+					Rule: Rule{
+						EffectType: MarkTransformation,
+						Effect:     uint8(MarkRaw),
+					},
+				}}
 			}
 		}
-		if lowerKey == ']' && len(transformations) > 0 {
-			if transformations[0].Rule.Result == ']' {
-				transformations[0].Rule.Result = 'ư'
-				transformations[0].Rule.EffectOn = 'ư'
-			} else if transformations[0].Rule.Result == ']' {
-				transformations[0].Rule.Result = 'Ư'
-				transformations[0].Rule.EffectOn = 'Ư'
+		if (lowerKey == '[' || lowerKey == '{') && len(transformations) > 0 && (transformations[0].Rule.Result == '[' || transformations[0].Rule.Result == '{') {
+			transformations[0].Rule.Result = 'ơ'
+			transformations[0].Rule.EffectOn = 'ơ'
+			if lowerKey == '{' {
+				transformations[0].IsUpperCase = true
+			}
+		}
+		if (lowerKey == ']' || lowerKey == '}') && len(transformations) > 0 && (transformations[0].Rule.Result == ']' || transformations[0].Rule.Result == '}') {
+			transformations[0].Rule.Result = 'ư'
+			transformations[0].Rule.EffectOn = 'ư'
+			if lowerKey == '}' {
+				transformations[0].IsUpperCase = true
 			}
 		}
 	}
-	
+
 	// Keep old W2U logic for backward compatibility
 	canApplyW2U := (e.w2uMode == W2uEverywhere) ||
 		(e.w2uMode == W2uNonStart && len(composition) > 0) ||
 		(e.w2uMode == W2uFollowFlags && e.flags&Ew2uEnabled != 0)
 
 	if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
-			if transformations[0].Rule.Result == 'w' {
-				transformations[0].Rule.Result = 'ư'
-				transformations[0].Rule.EffectOn = 'ư'
-			} else if transformations[0].Rule.Result == 'W' {
-				transformations[0].Rule.Result = 'Ư'
-				transformations[0].Rule.EffectOn = 'Ư'
-			}
+		if transformations[0].Rule.Result == 'w' {
+			transformations[0].Rule.Result = 'ư'
+			transformations[0].Rule.EffectOn = 'ư'
+		} else if transformations[0].Rule.Result == 'W' {
+			transformations[0].Rule.Result = 'Ư'
+			transformations[0].Rule.EffectOn = 'Ư'
 		}
-		var newComposition = append(composition, transformations...)
+	}
+	var newComposition = append(composition, transformations...)
 
-		// Implement the uwo+ typing shortcut by creating a virtual
-		// Mark.HORN rule that targets 'u' or 'o'.
-		if virtualTrans := e.applyUowShortcut(newComposition); virtualTrans != nil {
-			transformations = append(transformations, virtualTrans)
-		}
+	// Implement the uwo+ typing shortcut by creating a virtual
+	// Mark.HORN rule that targets 'u' or 'o'.
+	if virtualTrans := e.applyUowShortcut(newComposition); virtualTrans != nil {
+		transformations = append(transformations, virtualTrans)
 	}
 	/**
 	* Sometimes, a tone's position in a previous state must be changed to fit the new state
@@ -213,7 +240,6 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 	transformations = append(transformations, e.refreshLastToneTarget(append(composition, transformations...))...)
 	return transformations
 }
-
 func (e *BambooEngine) newComposition(composition []*Transformation, key rune, isUpperCase bool) []*Transformation {
 	// Just process the key stroke on the last syllable
 	var previousTransformations, lastSyllable = extractLastSyllable(composition)
