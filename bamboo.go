@@ -34,12 +34,19 @@ const (
 )
 
 const (
+	BracketTransformFollowFlags = -1
+	BracketTransformDisabled    = 0
+	BracketTransformNonStart    = 1
+	BracketTransformEverywhere  = 2
+)
+
+const (
 	EfreeToneMarking uint = 1 << iota
 	EstdToneStyle
 	EautoCorrectEnabled
 	Ew2uEnabled
-	EbracketTransform  // New: independent option for [ -> ư, ] -> ơ (works with any input method)
-	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled | EbracketTransform
+	EbracketTransformEnabled
+	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled | EbracketTransformEnabled
 )
 
 
@@ -69,14 +76,16 @@ type BambooEngine struct {
 	inputMethod InputMethod
 	flags       uint
 	w2uMode     int // W2uFollowFlags, W2uDisabled, W2uNonStart, W2uEverywhere
+	bracketTransformMode int // BracketTransformFollowFlags, Disabled, NonStart, Everywhere
 }
 
 func NewEngine(inputMethod InputMethod, flag uint) IEngine {
 	engine := BambooEngine{
-		inputMethod: inputMethod,
-		flags:       flag,
-		w2uMode:     W2uFollowFlags,
-	}
+ 		inputMethod: inputMethod,
+ 		flags:       flag,
+ 		w2uMode:     W2uFollowFlags,
+ 		bracketTransformMode: BracketTransformFollowFlags,
+ 	}
 	return &engine
 }
 
@@ -91,6 +100,12 @@ func (e *BambooEngine) SetFlag(flag uint) {
 func (e *BambooEngine) SetW2UMode(mode int) {
 	if mode >= W2uDisabled && mode <= W2uEverywhere {
 		e.w2uMode = mode
+	}
+}
+
+func (e *BambooEngine) SetBracketTransformMode(mode int) {
+	if mode >= BracketTransformDisabled && mode <= BracketTransformEverywhere {
+		e.bracketTransformMode = mode
 	}
 }
 
@@ -141,8 +156,11 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		// transformation fall-backs to an APPENDING one.
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
 		
-	// Bracket transform: [ -> ơ, ] -> ư (independent of input method)
-	if e.flags&EbracketTransform != 0 {
+	canApplyBracket := (e.bracketTransformMode == BracketTransformEverywhere) ||
+		(e.bracketTransformMode == BracketTransformNonStart && len(composition) > 0) ||
+		(e.bracketTransformMode == BracketTransformFollowFlags && e.flags&EbracketTransformEnabled != 0)
+
+	if canApplyBracket {
 		if lowerKey == '[' && len(transformations) > 0 {
 			if transformations[0].Rule.Result == '[' {
 				transformations[0].Rule.Result = 'ơ'
