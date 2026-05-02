@@ -23,6 +23,8 @@ var InputMethodDefinitions = map[string]InputMethodDefinition{
 		"o": "O_Ô",
 		"w": "UOA_ƯƠĂ",
 		"d": "D_Đ",
+		// Telex 2 independent option: [ -> ư, ] -> ơ (need Etelex2Enabled flag)
+		// These will be added dynamically in the engine
 	},
 	"VNI": {
 		"0": "XoaDauThanh",
@@ -83,11 +85,11 @@ var InputMethodDefinitions = map[string]InputMethodDefinition{
 		"w": "UOA_ƯƠĂ",
 		"d": "D_Đ",
 		"]": "__ư",
-		"[": "__ơ",
-		"}": "_Ư",
-		"{": "_Ơ",
-	},
-	"Telex + VNI": {
+ 		"[": "__ơ",
+ 		"}": "_Ư",
+ 		"{": "_Ơ",
+ 	},
+ 	"Telex + VNI": {
 		"z": "XoaDauThanh",
 		"s": "DauSac",
 		"f": "DauHuyen",

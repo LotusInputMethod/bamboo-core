@@ -38,7 +38,8 @@ const (
 	EstdToneStyle
 	EautoCorrectEnabled
 	Ew2uEnabled
-	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled
+	EbracketTransform  // New: independent option for [ -> ư, ] -> ơ (works with any input method)
+	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled | EbracketTransform
 )
 
 
@@ -140,12 +141,34 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		// transformation fall-backs to an APPENDING one.
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
 		
-		// Unified Modular W2U Logic
-		canApplyW2U := (e.w2uMode == W2uEverywhere) ||
-			(e.w2uMode == W2uNonStart && len(composition) > 0) ||
-			(e.w2uMode == W2uFollowFlags && e.flags&Ew2uEnabled != 0)
+	// Bracket transform: [ -> ơ, ] -> ư (independent of input method)
+	if e.flags&EbracketTransform != 0 {
+		if lowerKey == '[' && len(transformations) > 0 {
+			if transformations[0].Rule.Result == '[' {
+				transformations[0].Rule.Result = 'ơ'
+				transformations[0].Rule.EffectOn = 'ơ'
+			} else if transformations[0].Rule.Result == '[' {
+				transformations[0].Rule.Result = 'Ơ'
+				transformations[0].Rule.EffectOn = 'Ơ'
+			}
+		}
+		if lowerKey == ']' && len(transformations) > 0 {
+			if transformations[0].Rule.Result == ']' {
+				transformations[0].Rule.Result = 'ư'
+				transformations[0].Rule.EffectOn = 'ư'
+			} else if transformations[0].Rule.Result == ']' {
+				transformations[0].Rule.Result = 'Ư'
+				transformations[0].Rule.EffectOn = 'Ư'
+			}
+		}
+	}
+	
+	// Keep old W2U logic for backward compatibility
+	canApplyW2U := (e.w2uMode == W2uEverywhere) ||
+		(e.w2uMode == W2uNonStart && len(composition) > 0) ||
+		(e.w2uMode == W2uFollowFlags && e.flags&Ew2uEnabled != 0)
 
-		if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
+	if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
 			if transformations[0].Rule.Result == 'w' {
 				transformations[0].Rule.Result = 'ư'
 				transformations[0].Rule.EffectOn = 'ư'
