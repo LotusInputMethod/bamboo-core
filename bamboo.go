@@ -49,7 +49,6 @@ const (
 	EstdFlags = EfreeToneMarking | EstdToneStyle | EautoCorrectEnabled | Ew2uEnabled
 )
 
-
 type Transformation struct {
 	Rule        Rule
 	Target      *Transformation
@@ -73,20 +72,20 @@ type IEngine interface {
 }
 
 type BambooEngine struct {
-	composition []*Transformation
-	inputMethod InputMethod
-	flags       uint
-	w2uMode     int // W2uFollowFlags, W2uDisabled, W2uNonStart, W2uEverywhere
+	composition          []*Transformation
+	inputMethod          InputMethod
+	flags                uint
+	w2uMode              int // W2uFollowFlags, W2uDisabled, W2uNonStart, W2uEverywhere
 	bracketTransformMode int // BracketTransformFollowFlags, Disabled, NonStart, Everywhere
 }
 
 func NewEngine(inputMethod InputMethod, flag uint) IEngine {
 	engine := BambooEngine{
- 		inputMethod: inputMethod,
- 		flags:       flag,
- 		w2uMode:     W2uFollowFlags,
- 		bracketTransformMode: BracketTransformFollowFlags,
- 	}
+		inputMethod:          inputMethod,
+		flags:                flag,
+		w2uMode:              W2uFollowFlags,
+		bracketTransformMode: BracketTransformFollowFlags,
+	}
 	return &engine
 }
 
@@ -115,14 +114,24 @@ func (e *BambooEngine) GetFlag(flag uint) uint {
 }
 
 func (e *BambooEngine) IsValid(inputIsFullComplete bool) bool {
-	keys := append(e.GetInputMethod().Keys, '[', ']', '{', '}')
+	var keys []rune
+	if e.isBracketEnabled() {
+		keys = append(e.GetInputMethod().Keys, '[', ']', '{', '}')
+	} else {
+		keys = e.GetInputMethod().Keys
+	}
 	var _, last = extractLastWord(e.composition, keys)
 	return isValid(last, inputIsFullComplete)
 }
 
 func (e *BambooEngine) GetProcessedString(mode Mode) string {
 	var tmp []*Transformation
-	keys := append(e.inputMethod.Keys, '[', ']', '{', '}')
+	var keys []rune
+	if e.isBracketEnabled() {
+		keys = append(e.inputMethod.Keys, '[', ']', '{', '}')
+	} else {
+		keys = e.inputMethod.Keys
+	}
 	if mode&FullText != 0 {
 		tmp = e.composition
 	} else if mode&PunctuationMode != 0 {
@@ -132,6 +141,12 @@ func (e *BambooEngine) GetProcessedString(mode Mode) string {
 		_, tmp = extractLastWord(e.composition, keys)
 	}
 	return Flatten(tmp, mode)
+}
+
+func (e *BambooEngine) isBracketEnabled() bool {
+	return (e.bracketTransformMode == BracketTransformEverywhere) ||
+		(e.bracketTransformMode == BracketTransformNonStart && len(e.composition) > 0) ||
+		(e.bracketTransformMode == BracketTransformFollowFlags && e.flags&EbracketTransformEnabled != 0)
 }
 
 func (e *BambooEngine) getApplicableRules(key rune) []Rule {
@@ -152,9 +167,11 @@ func (e *BambooEngine) CanProcessKey(key rune) bool {
 	if canProcessKey(key, e.inputMethod.Keys) {
 		return true
 	}
-	lowerKey := unicode.ToLower(key)
-	if lowerKey == '[' || lowerKey == ']' || lowerKey == '{' || lowerKey == '}' {
-		return true
+	if e.isBracketEnabled() {
+		lowerKey := unicode.ToLower(key)
+		if lowerKey == '[' || lowerKey == ']' || lowerKey == '{' || lowerKey == '}' {
+			return true
+		}
 	}
 	return false
 }
@@ -167,11 +184,7 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
 	}
 
-	canApplyBracket := (e.bracketTransformMode == BracketTransformEverywhere) ||
-		(e.bracketTransformMode == BracketTransformNonStart && len(e.composition) > 0) ||
-		(e.bracketTransformMode == BracketTransformFollowFlags && e.flags&EbracketTransformEnabled != 0)
-
-	if canApplyBracket {
+	if e.isBracketEnabled() {
 		if len(composition) > 0 {
 			lastTrans := composition[len(composition)-1]
 			if (lowerKey == '[' || lowerKey == '{') && (lastTrans.Rule.Key == '[' || lastTrans.Rule.Key == '{') && (lastTrans.Rule.Result == 'ơ' || lastTrans.Rule.Result == 'Ơ') {
@@ -215,10 +228,11 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 		(e.w2uMode == W2uFollowFlags && e.flags&Ew2uEnabled != 0)
 
 	if canApplyW2U && lowerKey == 'w' && len(transformations) > 0 {
-		if transformations[0].Rule.Result == 'w' {
+		switch transformations[0].Rule.Result {
+		case 'w':
 			transformations[0].Rule.Result = 'ư'
 			transformations[0].Rule.EffectOn = 'ư'
-		} else if transformations[0].Rule.Result == 'W' {
+		case 'W':
 			transformations[0].Rule.Result = 'Ư'
 			transformations[0].Rule.EffectOn = 'Ư'
 		}
