@@ -13,8 +13,10 @@ import (
 )
 
 func newStdEngine() IEngine {
-	var im = ParseInputMethod(InputMethodDefinitions, "Telex 2")
-	return NewEngine(im, EstdFlags)
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
+	var ng = NewEngine(im, EstdFlags)
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
+	return ng
 }
 
 func TestProcessString(t *testing.T) {
@@ -171,16 +173,17 @@ func TestTelex23(t *testing.T) {
 	if ng.GetProcessedString(VietnameseMode) != "]a" {
 		t.Errorf("Process ]aa, got %s valid=%v expected true", ng.GetProcessedString(VietnameseMode), ng.IsValid(true))
 	}
-	var im = ParseInputMethod(InputMethodDefinitions, "Telex 2")
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
 	var ng = NewEngine(im, EstdFlags)
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
 	ng.ProcessString("[", VietnameseMode)
 	if ng.GetProcessedString(VietnameseMode) != "ơ" {
-		t.Errorf("Process Telex 2 [[], got [%v] expected [ươ]", ng.GetProcessedString(VietnameseMode))
+		t.Errorf("Process BracketTransform [[], got [%v] expected [ươ]", ng.GetProcessedString(VietnameseMode))
 	}
 	ng.Reset()
 	ng.ProcessString("{", VietnameseMode)
 	if ng.GetProcessedString(VietnameseMode) != "Ơ" {
-		t.Errorf("Process Telex 2 [{], got [%s] expected [Ơ]", ng.GetProcessedString(VietnameseMode))
+		t.Errorf("Process BracketTransform [{], got [%s] expected [Ơ]", ng.GetProcessedString(VietnameseMode))
 	}
 }
 
@@ -228,7 +231,7 @@ func TestProcessAlooString(t *testing.T) {
 
 func TestSpellingCheckForGiư(t *testing.T) {
 	ng := newStdEngine()
-	// In Telex 2, ']' is used for 'ư'
+	// With BracketTransform, ']' is used for 'ư'
 	ng.ProcessString("gi]", VietnameseMode)
 	if ng.IsValid(false) == false {
 		t.Errorf("Process gi], got [%v] expected [%v]", ng.IsValid(false) == false, true)
@@ -358,8 +361,9 @@ func TestProcessTnoss(t *testing.T) {
 
 //ềng
 func TestProcessEenghf(t *testing.T) {
-	var im = ParseInputMethod(InputMethodDefinitions, "Telex 2")
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
 	ng := NewEngine(im, EstdFlags)
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
 	ng.ProcessString("ddawks", VietnameseMode)
 	if ng.GetProcessedString(VietnameseMode) != "đắk" {
 		t.Errorf("Process eenghf, got [%v] expected [đắk]", ng.GetProcessedString(VietnameseMode))
@@ -414,8 +418,9 @@ func TestProcesshuoswc(t *testing.T) {
 
 //choas, bieecs, uese
 func TestProcesschoas(t *testing.T) {
-	var im = ParseInputMethod(InputMethodDefinitions, "Telex 2")
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
 	ng := NewEngine(im, EstdFlags&^EstdToneStyle)
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
 	ng.ProcessString("choas", VietnameseMode)
 	if ng.GetProcessedString(VietnameseMode) != "choá" {
 		t.Errorf("Process [choas], got [%v] expected [choá]", ng.GetProcessedString(VietnameseMode))
@@ -692,5 +697,74 @@ func BenchmarkRemoveLastChar(b *testing.B) {
 		if ng.GetProcessedString(VietnameseMode) != "ạ" {
 			b.Errorf("Process [aj], got [%s] expected [ạ]", ng.GetProcessedString(VietnameseMode))
 		}
+	}
+}
+
+func TestBracketTransformGlobal(t *testing.T) {
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
+	var ng = NewEngine(im, EstdFlags)
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
+
+	ng.ProcessString("[", VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode | FullText) != "ơ" {
+		t.Errorf("BracketTransform (Everywhere): [ expected ơ, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	}
+	ng.Reset()
+	ng.ProcessString("]", VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode | FullText) != "ư" {
+		t.Errorf("BracketTransform (Everywhere): ] expected ư, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	}
+
+	ng.Reset()
+	ng.SetBracketTransformMode(BracketTransformNonStart)
+	ng.ProcessString("[", VietnameseMode)
+	// At start of word, [ should stay [
+	if ng.GetProcessedString(VietnameseMode | FullText) != "[" {
+		t.Errorf("BracketTransform (NonStart) at start: [ expected [, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	}
+	ng.Reset()
+	ng.ProcessString("a[", VietnameseMode)
+	// After a, [ should become ơ
+	if ng.GetProcessedString(VietnameseMode | FullText) != "aơ" {
+		t.Errorf("BracketTransform (NonStart) after a: [ expected aơ, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	}
+
+	// Test double typing to cancel
+	ng.Reset()
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
+	ng.ProcessString("[[", VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode | FullText) != "[" {
+		t.Errorf("BracketTransform (Everywhere) double typing: [[ expected [, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	}
+}
+
+func TestBracketTransformWithTone(t *testing.T) {
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
+	var ng = NewEngine(im, EstdFlags)
+	ng.SetBracketTransformMode(BracketTransformEverywhere)
+
+	// Test m[f -> mờ
+	ng.ProcessString("m[f", VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode) != "mờ" {
+		t.Errorf("BracketTransform + Tone: m[f expected mờ, got %s", ng.GetProcessedString(VietnameseMode))
+	}
+
+	// Test d]s -> dứ
+	ng.Reset()
+	ng.ProcessString("d]s", VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode) != "dứ" {
+		t.Errorf("BracketTransform + Tone: d]s expected dứ, got %s", ng.GetProcessedString(VietnameseMode))
+	}
+}
+
+func TestBracketDisabledWithTone(t *testing.T) {
+	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
+	var ng = NewEngine(im, EstdFlags)
+	ng.SetBracketTransformMode(BracketTransformDisabled)
+
+	// Test m[f -> m[f (since [ is literal and not a vowel, f remains f)
+	ng.ProcessString("m[f", VietnameseMode)
+	if ng.GetProcessedString(VietnameseMode | FullText) != "m[f" {
+		t.Errorf("Bracket Disabled + Tone: m[f expected m[f, got %s", ng.GetProcessedString(VietnameseMode | FullText))
 	}
 }

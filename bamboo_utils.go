@@ -401,7 +401,7 @@ var regUhO = regexp.MustCompile(`(ưo|ươ)`)
 **/
 func generateTransformations(composition []*Transformation, applicableRules []Rule, flags uint, lowerKey rune, isUpperCase bool) []*Transformation {
 	var transformations []*Transformation
-	// Double typing an effect key undoes it and its effects, e.g. w + w -> w (Telex 2)
+	// Double typing an effect key undoes it and its effects, e.g. w + w -> w
 	if len(composition) > 0 {
 		var rule = composition[len(composition)-1].Rule
 		if rule.EffectType == Appending && rule.Key == lowerKey && rule.Key != rule.Result {
