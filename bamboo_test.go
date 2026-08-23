@@ -686,6 +686,38 @@ func TestEw2uEnabled(t *testing.T) {
 
 
 var ng = newStdEngine()
+func TestFreeCVSpelling(t *testing.T) {
+	// Onset-vowel pairing is free (isValidCV removed); the rime rule
+	// (isValidVC) is kept. Previously blocked by cvMatrix: b/m/n x oă.
+	check := func(ng IEngine, typed, want string, wantValid bool) {
+		ng.Reset()
+		ng.ProcessString(typed, VietnameseMode)
+		got := ng.GetProcessedString(VietnameseMode)
+		if got != want {
+			t.Errorf("Process [%s], got [%s] expected [%s]", typed, got, want)
+		}
+		if valid := ng.IsValid(true); valid != wantValid {
+			t.Errorf("IsValid(true) for [%s], got [%v] expected [%v]", typed, valid, wantValid)
+		}
+	}
+
+	// w2u ON (default EstdFlags): previously garbled into "boaựm".
+	ng := newStdEngine()
+	check(ng, "boawjm", "boặm", true)
+	check(ng, "moawsm", "moắm", true)
+	check(ng, "noawfm", "noằm", true)
+	// Regression: words that already worked keep working.
+	check(ng, "khoawsm", "khoắm", true)
+	check(ng, "loawjm", "loặm", true)
+	// Rime rule preserved: "a" + "k" is not a valid rime.
+	check(ng, "tak", "tak", false)
+	// Rime "ă" + "k" stays valid (vowel-row union, unchanged).
+	check(ng, "tawsk", "tắk", true)
+
+	// w2u OFF: previously stayed raw "boawjm".
+	ng = NewEngine(ParseInputMethod(InputMethodDefinitions, "Telex"), EstdFlags&^Ew2uEnabled)
+	check(ng, "boawjm", "boặm", true)
+}
 
 func BenchmarkRemoveLastChar(b *testing.B) {
 	b.ReportAllocs()

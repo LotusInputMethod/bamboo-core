@@ -8,12 +8,10 @@
 
 package bamboo
 
+// Flat list (row structure was only meaningful for the removed cvMatrix).
 var firstConsonantSeqs = []string{
-	"b d đ g gh m n nh p ph r s t tr v z",
-	"c h k kh kr qu th",
-	"ch gi l ng ngh x",
-	"b đ l",
-	"h",
+	"b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "kr", "l", "m",
+	"n", "ng", "ngh", "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x", "z",
 }
 
 var vowelSeqs = []string{
@@ -33,14 +31,6 @@ var lastConsonantSeqs = []string{
 	"m n p t",
 	"k",
 	"c",
-}
-
-var cvMatrix = [][]int{
-	{0, 1, 2, 5},
-	{0, 1, 2, 3, 4, 5},
-	{0, 1, 2, 3, 5},
-	{6},
-	{7},
 }
 
 var vcMatrix = [][]int{
@@ -108,12 +98,6 @@ func isValidCVC(fc, vo, lc string, inputIsFullComplete bool) bool {
 		// first consonant only
 		return fcIndexes != nil
 	}
-	if fcIndexes != nil {
-		// first consonant + vowel
-		if ret = isValidCV(fcIndexes, voIndexes); !ret || lcIndexes == nil {
-			return ret
-		}
-	}
 	if lcIndexes != nil {
 		// vowel + last consonant
 		ret = isValidVC(voIndexes, lcIndexes)
@@ -122,19 +106,6 @@ func isValidCVC(fc, vo, lc string, inputIsFullComplete bool) bool {
 		ret = true
 	}
 	return ret
-}
-
-func isValidCV(fcIndexes, voIndexes []int) bool {
-	for _, fc := range fcIndexes {
-		for _, c := range cvMatrix[fc] {
-			for _, vo := range voIndexes {
-				if c == vo {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func isValidVC(voIndexes, lcIndexes []int) bool {
