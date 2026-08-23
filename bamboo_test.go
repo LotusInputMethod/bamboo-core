@@ -1,9 +1,10 @@
 /*
  * Bamboo - A Vietnamese Input method editor
  * Copyright (C) Luong Thanh Lam <ltlam93@gmail.com>
+ * Copyright (C) Nguyễn Hoàng Kỳ  <nhktmdzhg@gmail.com>
  *
  * This software is licensed under the MIT license. For more information,
- * see <https://github.com/BambooEngine/bamboo-core/blob/master/LICENSE>.
+ * see <https://github.com/LotusInputMethod/bamboo-core/blob/master/LICENSE>.
  */
 
 package bamboo
@@ -350,7 +351,7 @@ func TestProcessToorr(t *testing.T) {
 	}
 }
 
-//tnó
+// tnó
 func TestProcessTnoss(t *testing.T) {
 	ng := newStdEngine()
 	ng.ProcessString("tnoss", VietnameseMode)
@@ -359,7 +360,7 @@ func TestProcessTnoss(t *testing.T) {
 	}
 }
 
-//ềng
+// ềng
 func TestProcessEenghf(t *testing.T) {
 	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
 	ng := NewEngine(im, EstdFlags)
@@ -370,7 +371,7 @@ func TestProcessEenghf(t *testing.T) {
 	}
 }
 
-//HIEEUR
+// HIEEUR
 func TestProcessHIEEUR(t *testing.T) {
 	ng := newStdEngine()
 	ng.ProcessString("tooi oo HIEEUR", VietnameseMode)
@@ -379,7 +380,7 @@ func TestProcessHIEEUR(t *testing.T) {
 	}
 }
 
-//NGUOIW
+// NGUOIW
 func TestProcessNGUOIW(t *testing.T) {
 	ng := newStdEngine()
 	ng.ProcessString("NGUOIW", VietnameseMode)
@@ -388,7 +389,7 @@ func TestProcessNGUOIW(t *testing.T) {
 	}
 }
 
-//T{s
+// T{s
 func TestProcessTOs(t *testing.T) {
 	ng := newStdEngine()
 	ng.ProcessString("{s", VietnameseMode)
@@ -397,7 +398,7 @@ func TestProcessTOs(t *testing.T) {
 	}
 }
 
-//T{s
+// T{s
 func TestProcessTo5(t *testing.T) {
 	var im = ParseInputMethod(InputMethodDefinitions, "VNI")
 	ng := NewEngine(im, EstdFlags)
@@ -407,7 +408,7 @@ func TestProcessTo5(t *testing.T) {
 	}
 }
 
-//duwongwj
+// duwongwj
 func TestProcesshuoswc(t *testing.T) {
 	ng := newStdEngine()
 	ng.ProcessString("duwongwj", VietnameseMode)
@@ -416,7 +417,7 @@ func TestProcesshuoswc(t *testing.T) {
 	}
 }
 
-//choas, bieecs, uese
+// choas, bieecs, uese
 func TestProcesschoas(t *testing.T) {
 	var im = ParseInputMethod(InputMethodDefinitions, "Telex")
 	ng := NewEngine(im, EstdFlags&^EstdToneStyle)
@@ -684,8 +685,8 @@ func TestEw2uEnabled(t *testing.T) {
 	}
 }
 
-
 var ng = newStdEngine()
+
 func TestFreeCVSpelling(t *testing.T) {
 	// Onset-vowel pairing is free (isValidCV removed); the rime rule
 	// (isValidVC) is kept. Previously blocked by cvMatrix: b/m/n x oă.
@@ -738,35 +739,35 @@ func TestBracketTransformGlobal(t *testing.T) {
 	ng.SetBracketTransformMode(BracketTransformEverywhere)
 
 	ng.ProcessString("[", VietnameseMode)
-	if ng.GetProcessedString(VietnameseMode | FullText) != "ơ" {
-		t.Errorf("BracketTransform (Everywhere): [ expected ơ, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	if ng.GetProcessedString(VietnameseMode|FullText) != "ơ" {
+		t.Errorf("BracketTransform (Everywhere): [ expected ơ, got %s", ng.GetProcessedString(VietnameseMode|FullText))
 	}
 	ng.Reset()
 	ng.ProcessString("]", VietnameseMode)
-	if ng.GetProcessedString(VietnameseMode | FullText) != "ư" {
-		t.Errorf("BracketTransform (Everywhere): ] expected ư, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	if ng.GetProcessedString(VietnameseMode|FullText) != "ư" {
+		t.Errorf("BracketTransform (Everywhere): ] expected ư, got %s", ng.GetProcessedString(VietnameseMode|FullText))
 	}
 
 	ng.Reset()
 	ng.SetBracketTransformMode(BracketTransformNonStart)
 	ng.ProcessString("[", VietnameseMode)
 	// At start of word, [ should stay [
-	if ng.GetProcessedString(VietnameseMode | FullText) != "[" {
-		t.Errorf("BracketTransform (NonStart) at start: [ expected [, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	if ng.GetProcessedString(VietnameseMode|FullText) != "[" {
+		t.Errorf("BracketTransform (NonStart) at start: [ expected [, got %s", ng.GetProcessedString(VietnameseMode|FullText))
 	}
 	ng.Reset()
 	ng.ProcessString("a[", VietnameseMode)
 	// After a, [ should become ơ
-	if ng.GetProcessedString(VietnameseMode | FullText) != "aơ" {
-		t.Errorf("BracketTransform (NonStart) after a: [ expected aơ, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	if ng.GetProcessedString(VietnameseMode|FullText) != "aơ" {
+		t.Errorf("BracketTransform (NonStart) after a: [ expected aơ, got %s", ng.GetProcessedString(VietnameseMode|FullText))
 	}
 
 	// Test double typing to cancel
 	ng.Reset()
 	ng.SetBracketTransformMode(BracketTransformEverywhere)
 	ng.ProcessString("[[", VietnameseMode)
-	if ng.GetProcessedString(VietnameseMode | FullText) != "[" {
-		t.Errorf("BracketTransform (Everywhere) double typing: [[ expected [, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	if ng.GetProcessedString(VietnameseMode|FullText) != "[" {
+		t.Errorf("BracketTransform (Everywhere) double typing: [[ expected [, got %s", ng.GetProcessedString(VietnameseMode|FullText))
 	}
 }
 
@@ -796,7 +797,7 @@ func TestBracketDisabledWithTone(t *testing.T) {
 
 	// Test m[f -> m[f (since [ is literal and not a vowel, f remains f)
 	ng.ProcessString("m[f", VietnameseMode)
-	if ng.GetProcessedString(VietnameseMode | FullText) != "m[f" {
-		t.Errorf("Bracket Disabled + Tone: m[f expected m[f, got %s", ng.GetProcessedString(VietnameseMode | FullText))
+	if ng.GetProcessedString(VietnameseMode|FullText) != "m[f" {
+		t.Errorf("Bracket Disabled + Tone: m[f expected m[f, got %s", ng.GetProcessedString(VietnameseMode|FullText))
 	}
 }

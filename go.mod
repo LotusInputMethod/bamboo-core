@@ -1,3 +1,3 @@
-module github.com/BambooEngine/bamboo-core
+module github.com/LotusInputMethod/bamboo-core
 
 go 1.18

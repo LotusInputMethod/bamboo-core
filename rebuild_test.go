@@ -3,7 +3,7 @@
  * Copyright (C) Nguyễn Hoàng Kỳ  <nhktmdzhg@gmail.com>
  *
  * This software is licensed under the MIT license. For more information,
- * see <https://github.com/BambooEngine/bamboo-core/blob/master/LICENSE>.
+ * see <https://github.com/LotusInputMethod/bamboo-core/blob/master/LICENSE>.
  */
 
 package bamboo

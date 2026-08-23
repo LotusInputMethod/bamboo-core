@@ -1,9 +1,10 @@
 /*
  * Bamboo - A Vietnamese Input method editor
  * Copyright (C) Luong Thanh Lam <ltlam93@gmail.com>
+ * Copyright (C) Nguyễn Hoàng Kỳ  <nhktmdzhg@gmail.com>
  *
  * This software is licensed under the MIT license. For more information,
- * see <https://github.com/BambooEngine/bamboo-core/blob/master/LICENCE>.
+ * see <https://github.com/LotusInputMethod/bamboo-core/blob/master/LICENSE>.
  */
 
 package bamboo
