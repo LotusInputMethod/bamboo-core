@@ -9,29 +9,29 @@
 
 package bamboo
 
-// Flat list (row structure was only meaningful for the removed cvMatrix).
-var firstConsonantSeqs = []string{
-	"b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "kr", "l", "m",
-	"n", "ng", "ngh", "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x", "z",
+var firstConsonantSeqs = [][]string{
+	{"b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "kr", "l", "m",
+		"n", "ng", "ngh", "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x", "z"},
 }
 
-var vowelSeqs = []string{
-	"ê i ua uê uy y",
-	"a iê oa uyê yê",
-	"â ă e o oo ô ơ oe u ư uâ uô ươ",
-	"oă",
-	"uơ",
-	"ai ao au âu ay ây eo êu ia iêu iu oai oao oay oeo oi ôi ơi ưa uây ui ưi uôi ươi ươu ưu uya uyu uêu yêu",
-	"ă u",
-	"i",
+// Row index maps 1:1 to vcMatrix: vowel row i pairs with vcMatrix[i].
+var vowelSeqs = [][]string{
+	{"ê", "i", "ua", "uê", "uy", "y"},
+	{"a", "iê", "oa", "uyê", "yê"},
+	{"â", "ă", "e", "o", "oo", "ô", "ơ", "oe", "u", "ư", "uâ", "uô", "ươ"},
+	{"oă"},
+	{"uơ"},
+	{"ai", "ao", "au", "âu", "ay", "ây", "eo", "êu", "ia", "iêu", "iu", "oai", "oao", "oay", "oeo", "oi", "ôi", "ơi", "ưa", "uây", "ui", "ưi", "uôi", "ươi", "ươu", "ưu", "uya", "uyu", "uêu", "yêu"},
+	{"ă", "u"},
+	{"i"},
 }
 
-var lastConsonantSeqs = []string{
-	"ch nh",
-	"c ng",
-	"m n p t",
-	"k",
-	"c",
+var lastConsonantSeqs = [][]string{
+	{"ch", "nh"},
+	{"c", "ng"},
+	{"m", "n", "p", "t"},
+	{"k"},
+	{"c"},
 }
 
 var vcMatrix = [][]int{
@@ -45,23 +45,18 @@ var vcMatrix = [][]int{
 	{4},
 }
 
-func lookup(seq []string, input string, inputIsFull, inputIsComplete bool) []int {
+func lookup(seq [][]string, input string, inputIsFull, inputIsComplete bool) []int {
 	var ret []int
-	var inputLen = len([]rune(input))
+	var inputRunes = []rune(input)
+	var inputLen = len(inputRunes)
 	for index, row := range seq {
-		var i = 0
-		var rows = append([]rune(row), ' ')
-		for j, char := range rows {
-			if char != ' ' {
-				continue
-			}
-			var canvas = rows[i:j]
-			i = j + 1
+		for _, token := range row {
+			var canvas = []rune(token)
 			if len(canvas) < inputLen || (inputIsFull && len(canvas) > inputLen) {
 				continue
 			}
 			var isMatch = true
-			for k, ic := range []rune(input) {
+			for k, ic := range inputRunes {
 				if ic != canvas[k] && !(!inputIsComplete && AddMarkToTonelessChar(canvas[k], 0) == ic) {
 					isMatch = false
 					break
