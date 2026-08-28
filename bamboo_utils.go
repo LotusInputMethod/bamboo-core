@@ -180,24 +180,38 @@ func isFree(composition []*Transformation, trans *Transformation, effectType Eff
 	return true
 }
 
-func extractAtomicTrans(composition, last []*Transformation, lastIsVowel bool) ([]*Transformation, []*Transformation) {
-	if len(composition) == 0 {
-		return composition, last
-	}
-	var tmp = composition[len(composition)-1]
-	if tmp != nil && tmp.Target == nil && lastIsVowel != IsVowel(tmp.Rule.Result) {
-		return composition, last
-	}
-	return extractAtomicTrans(composition[:len(composition)-1], append([]*Transformation{composition[len(composition)-1]}, last...), lastIsVowel)
-}
-
 /*
 Separate a string into smaller parts: first consonant (or head), vowel,
 last consonant (if any).
 */
 func extractCvcAppendingTrans(composition []*Transformation) ([]*Transformation, []*Transformation, []*Transformation) {
-	head, lastConsonant := extractAtomicTrans(composition, nil, false)
-	firstConsonant, vowel := extractAtomicTrans(head, nil, true)
+	n := len(composition)
+	if n == 0 {
+		return nil, nil, nil
+	}
+
+	lcStart := n
+	for lcStart > 0 {
+		t := composition[lcStart-1]
+		if t != nil && t.Target == nil && IsVowel(t.Rule.Result) {
+			break
+		}
+		lcStart--
+	}
+
+	voStart := lcStart
+	for voStart > 0 {
+		t := composition[voStart-1]
+		if t != nil && t.Target == nil && !IsVowel(t.Rule.Result) {
+			break
+		}
+		voStart--
+	}
+
+	firstConsonant := composition[:voStart]
+	vowel := composition[voStart:lcStart]
+	lastConsonant := composition[lcStart:]
+
 	if len(lastConsonant) > 0 && len(vowel) == 0 && len(firstConsonant) == 0 {
 		firstConsonant = lastConsonant
 		vowel = nil
@@ -213,32 +227,63 @@ func extractCvcAppendingTrans(composition []*Transformation) ([]*Transformation,
 	if len(firstConsonant) == 1 && len(vowel) > 0 && ((firstConsonant[0].Rule.Result == 'g' && vowel[0].Rule.Result == 'i' && len(vowel) > 1 &&
 		!(vowel[1].Rule.Result == 'e' && len(lastConsonant) > 0)) ||
 		(firstConsonant[0].Rule.Result == 'q' && vowel[0].Rule.Result == 'u')) {
-		firstConsonant = append(firstConsonant, vowel[0])
-		vowel = vowel[1:]
+		firstConsonant = composition[: voStart+1 : voStart+1]
+		vowel = composition[voStart+1 : lcStart]
 	}
 	return firstConsonant, vowel, lastConsonant
 }
 
+func isIn(target *Transformation, list []*Transformation) bool {
+	for _, t := range list {
+		if t == target {
+			return true
+		}
+	}
+	return false
+}
+
 func extractCvcTrans(composition []*Transformation) ([]*Transformation, []*Transformation, []*Transformation) {
-	var transMap = map[*Transformation][]*Transformation{}
-	var appendingList []*Transformation
+	n := len(composition)
+	if n == 0 {
+		return nil, nil, nil
+	}
+
+	var appendingList = make([]*Transformation, 0, n)
 	for _, trans := range composition {
 		if trans.Target == nil {
 			appendingList = append(appendingList, trans)
-		} else {
-			transMap[trans.Target] = append(transMap[trans.Target], trans)
 		}
 	}
-	var fc, vo, lc = extractCvcAppendingTrans(appendingList)
-	for _, t := range fc {
-		fc = append(fc, transMap[t]...)
+	fcApp, voApp, lcApp := extractCvcAppendingTrans(appendingList)
+
+	if len(appendingList) == n {
+		return fcApp, voApp, lcApp
 	}
-	for _, t := range vo {
-		vo = append(vo, transMap[t]...)
+
+	extraCap := n - len(appendingList)
+
+	fc := make([]*Transformation, len(fcApp), len(fcApp)+extraCap)
+	copy(fc, fcApp)
+
+	vo := make([]*Transformation, len(voApp), len(voApp)+extraCap)
+	copy(vo, voApp)
+
+	lc := make([]*Transformation, len(lcApp), len(lcApp)+extraCap)
+	copy(lc, lcApp)
+
+	for _, trans := range composition {
+		if trans.Target == nil {
+			continue
+		}
+		if isIn(trans.Target, voApp) {
+			vo = append(vo, trans)
+		} else if isIn(trans.Target, fcApp) {
+			fc = append(fc, trans)
+		} else {
+			lc = append(lc, trans)
+		}
 	}
-	for _, t := range lc {
-		lc = append(lc, transMap[t]...)
-	}
+
 	return fc, vo, lc
 }
 
