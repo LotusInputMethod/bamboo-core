@@ -373,6 +373,9 @@ func findTarget(composition []*Transformation, applicableRules []Rule, flags uin
 		} else if lastAppending := findLastAppendingTrans(composition); lastAppending != nil && IsVowel(lastAppending.Rule.EffectOn) {
 			target = lastAppending
 		}
+		if target == nil {
+			continue
+		}
 		if str == Flatten(append(composition, &Transformation{Target: target, Rule: applicableRule}), VietnameseMode) {
 			continue
 		}
@@ -552,9 +555,10 @@ func refreshLastToneTarget(composition []*Transformation, stdStyle bool) []*Tran
 	}
 	var newToneTarget = findToneTarget(composition, stdStyle)
 	if lastToneTrans.Target != newToneTarget {
+		var oldTarget = lastToneTrans.Target
 		lastToneTrans.Target = newToneTarget
 		transformations = append(transformations, &Transformation{
-			Target: lastToneTrans.Target,
+			Target: oldTarget,
 			Rule: Rule{
 				Key:        0,
 				EffectType: ToneTransformation,
