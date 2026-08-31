@@ -178,7 +178,7 @@ func ParseToneLessRule(key, effectiveOn, result rune, effect Mark) []Rule {
 			rule.Result = effectiveOn
 			rules = append(rules, rule)
 		} else if IsVowel(chr) {
-			for tone := range tones {
+			for _, tone := range tones {
 				var rule Rule
 				rule.Key = key
 				rule.EffectType = MarkTransformation
