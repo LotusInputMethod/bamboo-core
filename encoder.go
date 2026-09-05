@@ -8,6 +8,8 @@
 
 package bamboo
 
+import "sort"
+
 const UNICODE = "Unicode"
 
 func Encode(charsetName string, input string) string {
@@ -30,10 +32,14 @@ func Encode(charsetName string, input string) string {
 }
 
 func GetCharsetNames() []string {
-	var names []string
-	names = append(names, UNICODE)
+	var others []string
 	for cs := range charsetDefinitions {
-		names = append(names, cs)
+		others = append(others, cs)
 	}
+	sort.Strings(others)
+
+	names := make([]string, 0, len(others)+1)
+	names = append(names, UNICODE)
+	names = append(names, others...)
 	return names
 }
