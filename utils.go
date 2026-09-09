@@ -39,13 +39,12 @@ func IsWordBreakSymbol(key rune) bool {
 }
 
 func IsVowel(chr rune) bool {
-	isVowel := false
 	for _, v := range Vowels {
 		if v == chr {
-			isVowel = true
+			return true
 		}
 	}
-	return isVowel
+	return false 
 }
 
 func FindVowelPosition(chr rune) int {
