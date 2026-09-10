@@ -556,7 +556,6 @@ func refreshLastToneTarget(composition []*Transformation, stdStyle bool) []*Tran
 	var newToneTarget = findToneTarget(composition, stdStyle)
 	if lastToneTrans.Target != newToneTarget {
 		var oldTarget = lastToneTrans.Target
-		lastToneTrans.Target = newToneTarget
 		transformations = append(transformations, &Transformation{
 			Target: oldTarget,
 			Rule: Rule{
