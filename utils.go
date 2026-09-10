@@ -57,19 +57,19 @@ func FindVowelPosition(chr rune) int {
 	return -1
 }
 
-var marksMaps = map[rune]string{
-	'a': "aâă__",
-	'â': "aâă__",
-	'ă': "aâă__",
-	'e': "eê___",
-	'ê': "eê___",
-	'o': "oô_ơ_",
-	'ô': "oô_ơ_",
-	'ơ': "oô_ơ_",
-	'u': "u__ư_",
-	'ư': "u__ư_",
-	'd': "d___đ",
-	'đ': "d___đ",
+var marksMaps = map[rune][]rune{
+	'a': []rune("aâă__"),
+	'â': []rune("aâă__"),
+	'ă': []rune("aâă__"),
+	'e': []rune("eê___"),
+	'ê': []rune("eê___"),
+	'o': []rune("oô_ơ_"),
+	'ô': []rune("oô_ơ_"),
+	'ơ': []rune("oô_ơ_"),
+	'u': []rune("u__ư_"),
+	'ư': []rune("u__ư_"),
+	'd': []rune("d___đ"),
+	'đ': []rune("d___đ"),
 }
 
 func getMarkFamily(chr rune) []rune {
@@ -85,8 +85,8 @@ func getMarkFamily(chr rune) []rune {
 }
 
 func FindMarkPosition(chr rune) int {
-	if str, found := marksMaps[chr]; found {
-		for pos, v := range []rune(str) {
+	if marks, found := marksMaps[chr]; found {
+		for pos, v := range marks {
 			if v == chr {
 				return pos
 			}
@@ -104,8 +104,7 @@ func FindMarkFromChar(chr rune) (Mark, bool) {
 }
 
 func AddMarkToTonelessChar(chr rune, mark uint8) rune {
-	if str, found := marksMaps[chr]; found {
-		marks := []rune(str)
+	if marks, found := marksMaps[chr]; found {
 		if marks[mark] != '_' {
 			return marks[mark]
 		}
