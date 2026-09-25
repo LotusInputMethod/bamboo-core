@@ -279,7 +279,7 @@ func extractCvcTrans(composition []*Transformation) ([]*Transformation, []*Trans
 			vo = append(vo, trans)
 		} else if isIn(trans.Target, fcApp) {
 			fc = append(fc, trans)
-		} else {
+		} else if isIn(trans.Target, lcApp) {
 			lc = append(lc, trans)
 		}
 	}
