@@ -287,7 +287,7 @@ func extractCvcTrans(composition []*Transformation) ([]*Transformation, []*Trans
 	return fc, vo, lc
 }
 
-func extractLastWordWithPunctuationMarks(composition []*Transformation, effectKeys []rune) ([]*Transformation, []*Transformation) {
+func extractLastWordWithPunctuationMarks(composition []*Transformation) ([]*Transformation, []*Transformation) {
 	for i := len(composition) - 1; i >= 0; i-- {
 		var canvas = getCanvas(composition[i:], EnglishMode)
 		if len(canvas) == 0 {
@@ -518,7 +518,7 @@ func generateTransformations(composition []*Transformation, applicableRules []Ru
 	return transformations
 }
 
-func generateFallbackTransformations(composition []*Transformation, applicableRules []Rule, lowerKey rune, isUpperCase bool) []*Transformation {
+func generateFallbackTransformations(applicableRules []Rule, lowerKey rune, isUpperCase bool) []*Transformation {
 	var transformations []*Transformation
 	var trans = generateAppendingTrans(applicableRules, lowerKey, isUpperCase)
 	transformations = append(transformations, trans)

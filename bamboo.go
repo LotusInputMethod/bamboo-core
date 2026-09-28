@@ -136,7 +136,7 @@ func (e *BambooEngine) GetProcessedString(mode Mode) string {
 	if mode&FullText != 0 {
 		tmp = e.composition
 	} else if mode&PunctuationMode != 0 {
-		_, tmp = extractLastWordWithPunctuationMarks(e.composition, keys)
+		_, tmp = extractLastWordWithPunctuationMarks(e.composition)
 		return Flatten(tmp, VietnameseMode)
 	} else {
 		_, tmp = extractLastWord(e.composition, keys)
@@ -182,7 +182,7 @@ func (e *BambooEngine) generateTransformations(composition []*Transformation, lo
 	if transformations == nil {
 		// If none of the applicable_rules can actually be applied then this new
 		// transformation fall-backs to an APPENDING one.
-		transformations = generateFallbackTransformations(composition, e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
+		transformations = generateFallbackTransformations(e.getApplicableRules(lowerKey), lowerKey, isUpperCase)
 	}
 
 	if e.isBracketEnabled() {
